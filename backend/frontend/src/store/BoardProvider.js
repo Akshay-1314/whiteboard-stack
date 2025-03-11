@@ -6,6 +6,21 @@ import getStroke from 'perfect-freehand';
 
 const boardReducer = (state, action) => {
     switch (action.type) {
+        case BOARD_ACTIONS.LOAD_CANVAS:
+            {
+                return {
+                    ...state,
+                    elements: action.payload.elements.map(element => {
+                        if (element.type === "BRUSH") {
+                            return {
+                                ...element,
+                                path: new Path2D(getSvgPathFromStroke(getStroke(element.points)))
+                            };
+                        }
+                        return element;
+                    }),
+                }
+            }
         case BOARD_ACTIONS.CHANGE_ACTION_TYPE:
             {
                 return {
@@ -93,7 +108,6 @@ const boardReducer = (state, action) => {
             if (isErased)
                 newHistory.push(newElements);
             const newIndex = isErased ? state.index + 1 : state.index;
-            console.log(newHistory, state.index);
             return {
                 ...state,
                 elements: newElements,
@@ -145,6 +159,15 @@ const initialBoardState = {
 
 const BoardProvider = ({ children }) => {
     const [boardState, dispatchBoardAction] = useReducer(boardReducer, initialBoardState);
+
+    const loadCanvas = useCallback((updatedElements) => {
+        dispatchBoardAction({
+            type: BOARD_ACTIONS.LOAD_CANVAS,
+            payload: {
+                elements: updatedElements,
+            }
+        })
+    }, []);
 
     const changeToolHandler = (tool) => {
         dispatchBoardAction({
@@ -250,6 +273,7 @@ const BoardProvider = ({ children }) => {
         textAreaBlurHandler,
         boardUndoHandler,
         boardRedoHandler,
+        loadCanvas,
     };
     return (
         <boardContext.Provider value={boardContextValue}>

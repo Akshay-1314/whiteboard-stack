@@ -1,6 +1,7 @@
 import { createContext } from "react";
 
 const boardContext = createContext({
+    initialCanvas: {},
     activeToolItem: "",
     elements: [],
     history: [[]],

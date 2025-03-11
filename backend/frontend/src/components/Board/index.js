@@ -4,11 +4,14 @@ import boardContext from '../../store/board-context';
 import { TOOL_ACTION_TYPES, TOOL_ITEMS } from '../../constants';
 import toolboxContext from '../../store/toolbox-context';
 import classes from "./index.module.css"
+// import updateCanvas from '../../utils/updateCanvas';
 
-const Board = () => {
+const Board = ({initialElements, canvasId, socket}) => {
     const canvasRef = useRef();
     const textAreaRef = useRef();
-    const { elements, boardMouseDownHandler, boardMouseMoveHandler, boardMouseUpHandler, toolActionType, textAreaBlurHandler, boardUndoHandler, boardRedoHandler } = useContext(boardContext);
+    const socketRef = useRef(null);
+    // const socket = io('http://localhost:8000');
+    const { elements, loadCanvas, boardMouseDownHandler, boardMouseMoveHandler, boardMouseUpHandler, toolActionType, textAreaBlurHandler, boardUndoHandler, boardRedoHandler } = useContext(boardContext);
     useLayoutEffect(() => {
         const canvas = canvasRef.current;
         canvas.width = window.innerWidth;
@@ -21,7 +24,6 @@ const Board = () => {
         context.save();
 
         const roughCanvas = rough.canvas(canvas);
-
         elements.forEach((element) => {
             switch (element.type) {
                 case TOOL_ITEMS.ARROW:
@@ -63,10 +65,10 @@ const Board = () => {
 
     useEffect(() => {
         function handleKeyDown(event) {
-          if (event.ctrlKey || event.metaKey && event.key === "z") {
+          if ((event.ctrlKey || event.metaKey) && event.key === "z") {
             event.preventDefault();
             boardUndoHandler();
-          } else if (event.ctrlKey || event.metaKey && event.key === "y") {
+          } else if ((event.ctrlKey || event.metaKey) && event.key === "y") {
             event.preventDefault();
             boardRedoHandler();
           }
@@ -79,6 +81,10 @@ const Board = () => {
         };
       }, [boardUndoHandler, boardRedoHandler]);
 
+    useEffect(() => {
+        loadCanvas(initialElements);
+    }, [loadCanvas, initialElements]);
+
     const { toolboxState } = useContext(toolboxContext);
 
     const handleMouseDown = (event) => {
@@ -90,7 +96,25 @@ const Board = () => {
 
     const handleMouseUp = () => {
         boardMouseUpHandler();
+        if (!socketRef.current)
+            socketRef.current = socket;
+        socketRef.current.emit("drawingUpdate", {canvasId, elements});
+        // updateCanvas(canvasId, elements);
     }
+    useEffect(() => {
+        if (!socketRef.current) {
+            socketRef.current = socket;
+        }
+        socketRef.current.on("receiveDrawingUpdate", (updatedElements) => {
+            console.log("Received drawing update:", updatedElements);
+            loadCanvas(updatedElements); // Update the UI with new elements
+        });
+    
+        return () => {
+            socketRef.current.off("receiveDrawingUpdate");
+        };
+    }, [loadCanvas, socket]);
+    
 
     return (
         <>
